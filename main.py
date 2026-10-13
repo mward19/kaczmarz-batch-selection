@@ -31,11 +31,12 @@ class KaczmarzSolver:
         self.batch_size = self.n if batch_size is None else batch_size
         self.batch_indices = None
 
+        self.true_residuals = self.A @ self.x_sol - self.b
+
         self.rng = np.random.default_rng(seed=seed)
 
         self.scores = []
         self._score()
-        self.bounds = [float('nan')]
 
         self.diagnostics = defaultdict(list)
 
@@ -127,7 +128,6 @@ class MillerOpt(KaczmarzSolver):
         super().__init__(*args, **kwargs)
 
         self.teacher_residuals = self.A @ self.teacher - self.b
-        self.true_residuals = self.A @ self.x_sol - self.b
 
         n = self.A.shape[0]
         self.A_clean = self.A[[i for i in range(n) if i not in noised_indices]]
@@ -146,6 +146,9 @@ class MillerOpt(KaczmarzSolver):
         self.r_minus = (self.beta - self.D) / (2 * self.alpha)
 
         self.get_time_bound_floor()
+        self.get_bound_floor()
+
+
     
     def select_index(self, indices):
         residuals = self.A[indices] @ self.x - self.b[indices]
@@ -172,8 +175,13 @@ class MillerOpt(KaczmarzSolver):
         a = self.alpha
         b = self.beta
         g = self.gamma
-        self.tb_floor = ((b + np.sqrt(b**2 + 4 * a * g)) / (2 * a))**2
-        return self.tb_floor
+        self.diagnostics["tb_floor"] = ((b + np.sqrt(b**2 + 4 * a * g)) / (2 * a))**2
+
+    def get_bound_floor(self):
+        a = self.alpha
+        b = self.beta
+        g = self.gamma
+        self.diagnostics["b_floor"] = 2 * (b**2 / a**2 + g / a)
 
 
 class Comparison:
@@ -183,8 +191,10 @@ class Comparison:
         self.name = name
 
     def plot_residuals(self, title=None, name_suffix='', logx=False, logy=False):
+        plt.axhline(np.sum(self.solvers[0].true_residuals**2), label=f"True solution", ls="--", lw=2, color="black")
+
         for sol in self.solvers:
-            plt.plot(sol.scores, label=sol.name)
+            plt.plot(sol.scores, label=sol.name, lw=3)
             if isinstance(sol, MillerOpt):
                 plt.axhline(np.sum(sol.teacher_residuals**2), label=f"{sol.name} teacher", ls="--")
             
