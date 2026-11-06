@@ -1,0 +1,4 @@
+This is a human-led project. Do not make any changes that are not explicitly requested to anything here. 
+- Name your output files as `<date>_<3 to 5 word summary>.<suffix>`, e.g., `20261103_optimal_convergence_guarantee.typ`.
+- Your mathematical responses generally belong in `agents` as Typst files (unless they are very short), which you should then compile to pdf with `typst compile`. Begin it with `#import "@local/quicknotes:0.1.1": *; #show: template`. At the top you should place a title for the response, your name (GPT 6.1 Sol or whatever you are), and the date.
+- After .pdf compilation, open the pdf with `xdg-open <file>.pdf`.

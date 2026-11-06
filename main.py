@@ -16,6 +16,23 @@ def get_system(rng, n: int, d: int):
     b = A @ x
     return A, x, b
 
+def get_worst_system(s=10):
+    A = np.array([
+        [1, 0],
+        [1, 0],
+        [0, 1],
+        [0, 1],
+        [1, 0],
+    ]).astype(float)
+    x = np.zeros(2)
+    b = np.zeros(5)
+    b[-1] = 2 * s
+
+    teacher = np.full(2, s)
+
+    return A, x, b, teacher
+
+
 class KaczmarzSolver:
     def __init__(self, x0, A, b, x_sol, *, maxiter=100, batch_size=None, seed=None):
         self.x0 = x0
@@ -36,8 +53,7 @@ class KaczmarzSolver:
         self.rng = np.random.default_rng(seed=seed)
 
         self.scores = []
-        self._score()
-
+        self.parameter_errors = []
         self.diagnostics = defaultdict(list)
 
         self.name = type(self).__name__
@@ -46,9 +62,9 @@ class KaczmarzSolver:
         self.x = self.x0.copy()
         self.k = 0
         self.scores = []
-        self._score()
-
+        self.parameter_errors = []
         self.diagnostics = defaultdict(list)
+        self._score()
 
     def get_batch_indices(self):
         # Uniformly sampled
@@ -75,11 +91,14 @@ class KaczmarzSolver:
     def _score(self):
         score = np.sum((self.x - self.x_sol)**2)
         self.scores.append(score)
+        self.parameter_errors.append(score)
 
     def calc_diagnostics(self):
         return None
     
     def solve(self):
+        if not self.scores:
+            self._score()
         while not self.converged():
             print(f'Iterating (k = {self.k})', end='\r')
             self.calc_diagnostics()
@@ -87,6 +106,13 @@ class KaczmarzSolver:
             self._score()
         
         return self.x
+
+    def get_subset_indices(self, subset="all"):
+        if subset == "all":
+            return np.arange(self.n)
+        else:
+            raise NotImplementedError(f"Index subset {subset} not implemented for {self.name}")
+
 
 class RandomizedKaczmarz(KaczmarzSolver):
     # uniformly random selection
@@ -121,7 +147,7 @@ class Motzkins(KaczmarzSolver):
         self.diagnostics["bounds"].append(bound)
 
 
-class MillerOpt(KaczmarzSolver):
+class TeacherOpt(KaczmarzSolver):
     def __init__(self, *args, teacher, noised_indices=[], bound_type=0, **kwargs):
         self.teacher = teacher
 
@@ -130,7 +156,10 @@ class MillerOpt(KaczmarzSolver):
         self.teacher_residuals = self.A @ self.teacher - self.b
 
         n = self.A.shape[0]
-        self.A_clean = self.A[[i for i in range(n) if i not in noised_indices]]
+        self.noised_indices = noised_indices
+        self.clean_indices = np.array([i for i in range(n) if i not in self.noised_indices])
+        
+        self.A_clean = self.A[self.clean_indices]
         self.min_sing_val_sq = np.linalg.svdvals(self.A_clean)[-1]**2
 
         self.clean_cardinality = self.A_clean.shape[0]
@@ -145,10 +174,28 @@ class MillerOpt(KaczmarzSolver):
         self.r_plus = (self.beta + self.D) / (2 * self.alpha)
         self.r_minus = (self.beta - self.D) / (2 * self.alpha)
 
-        self.get_time_bound_floor()
-        self.get_bound_floor()
+        self.get_bound_diff_eq_floor()
+        self.get_bound_peter_paul_floor()
+        
+        self.fixed_shift = (self.beta + np.sqrt(self.beta**2 + 4 * self.alpha * self.gamma)) / (2 * self.alpha)
+        self.get_bound_fixed_shift_floor()
 
 
+        self._score()
+        self.d0 = np.sqrt(self.parameter_errors[0]) - self.fixed_shift
+
+        self.q = 1 - self.alpha + self.beta / (2 * self.fixed_shift)
+        self.rho = max(np.sqrt(1 - self.alpha), self.q)
+
+    def get_subset_indices(self, subset="all"):
+        if subset == "all":
+            return np.arange(self.n)
+        elif subset == "clean":
+            return self.clean_indices
+        elif subset == "noised":
+            return self.noised_indices
+        else:
+            raise NotImplementedError(f"Index subset {subset} not implemented for {self.name}")
     
     def select_index(self, indices):
         residuals = self.A[indices] @ self.x - self.b[indices]
@@ -159,29 +206,49 @@ class MillerOpt(KaczmarzSolver):
         bound = (1 - self.min_sing_val_sq / self.A_clean.shape[0]) * np.sum((self.x - self.x_sol)**2)
         self.diagnostics["bounds"].append(bound)
 
+        bound_fixed_shift = (self.fixed_shift + self.rho**self.k * self.d0)**2
+        self.diagnostics["bound_fixed_shift"].append(bound_fixed_shift)
+
+        test_val = self.rho**self.k * self.d0
+        self.diagnostics["bound_fixed_shift_deviation"].append(test_val)
+
     def calc_diagnostics(self):
         self.get_bound()
-        self.get_time_bound()
+        self.get_bound_diff_eq()
 
-    def get_time_bound(self):
-        error = self.scores[-1] # get last score to bound min achievement time
-        e0 = self.scores[0]
+    def get_bound_diff_eq(self):
+        error = self.parameter_errors[-1] # get last parameter error to bound min achievement time
+        e0 = self.parameter_errors[0]
         def log_term(r):
             return r * np.log((np.sqrt(e0) - r) / (np.sqrt(error) - r))
         T = 2/self.D * (log_term(self.r_plus) - log_term(self.r_minus))
-        self.diagnostics["time bounds"].append((T, error))
+        self.diagnostics["bound_diff_eq"].append((T, error))
 
-    def get_time_bound_floor(self):
+    def get_bound_diff_eq_floor(self):
         a = self.alpha
         b = self.beta
         g = self.gamma
-        self.diagnostics["tb_floor"] = ((b + np.sqrt(b**2 + 4 * a * g)) / (2 * a))**2
+        self.diagnostics["bound_diff_eq_floor"] = ((b + np.sqrt(b**2 + 4 * a * g)) / (2 * a))**2
 
-    def get_bound_floor(self):
+    def get_bound_peter_paul_floor(self):
         a = self.alpha
         b = self.beta
         g = self.gamma
-        self.diagnostics["b_floor"] = 2 * (b**2 / a**2 + g / a)
+        self.diagnostics["bound_peter_paul_floor"] = 2 * (b**2 / a**2 + g / a)
+
+    def get_bound_fixed_shift_floor(self):
+        a = self.alpha
+        b = self.beta
+        g = self.gamma
+        self.diagnostics["bound_fixed_shift_floor"] = self.fixed_shift**2
+
+    def _score(self):
+        residuals = (self.A @ self.x - self.b)**2
+        
+        self.scores.append(np.sum(residuals))
+        self.parameter_errors.append(np.sum((self.x - self.x_sol)**2))
+        self.diagnostics["scores_clean"].append(np.sum(residuals[self.clean_indices]))
+        self.diagnostics["scores_noised"].append(np.sum(residuals[self.noised_indices]))
 
 
 class Comparison:
@@ -190,13 +257,28 @@ class Comparison:
         self.plot_dir = "./plots"
         self.name = name
 
-    def plot_residuals(self, title=None, name_suffix='', logx=False, logy=False):
-        plt.axhline(np.sum(self.solvers[0].true_residuals**2), label=f"True solution", ls="--", lw=2, color="black")
+    def plot_residuals(self, title=None, logx=False, logy=False, subset='all'):
+        for i, sol in enumerate(self.solvers):
+            indices = sol.get_subset_indices(subset)
 
-        for sol in self.solvers:
-            plt.plot(sol.scores, label=sol.name, lw=3)
-            if isinstance(sol, MillerOpt):
-                plt.axhline(np.sum(sol.teacher_residuals**2), label=f"{sol.name} teacher", ls="--")
+            if subset == "all":
+                scores = sol.scores
+            elif subset == "clean":
+                scores = sol.diagnostics["scores_clean"]
+            else:
+                raise NotImplementedError()
+
+            if i == 0: # Only plot it once, should be the same for all
+                plt.axhline(
+                    np.sum(sol.true_residuals[indices]**2), 
+                    label=f"True solution", ls="--", lw=2, color="black"
+                )
+
+            # Plot the scores throughout training
+            plt.plot(scores, label=sol.name, lw=3)
+            
+            if isinstance(sol, TeacherOpt):
+                plt.axhline(np.sum(sol.teacher_residuals[indices]**2), label=f"{sol.name} teacher", ls="--")
             
 
         plt.xlabel("Iteration")
@@ -209,12 +291,23 @@ class Comparison:
         if logy:
             plt.yscale('log')
 
-        filename = self.name + name_suffix + ".png"
-        plt.savefig(os.path.join(self.plot_dir, filename))
+    def plot_parameter_errors(self, title=None, logx=False, logy=False):
+        for sol in self.solvers:
+            plt.plot(sol.parameter_errors, label=sol.name, lw=3)
 
-    # def plot_time_bounds(self, title=None, name_suffix='', logx=False, logy=False):
+        plt.xlabel("Iteration")
+        plt.ylabel("Squared parameter error")
+        plt.legend()
+        plt.title("Parameter error" if title is None else title)
+
+        if logx:
+            plt.xscale('log')
+        if logy:
+            plt.yscale('log')
+
+    # def plot_bound_diff_eq(self, title=None, name_suffix='', logx=False, logy=False):
     #     for sol in self.solvers:
     #         plt.plot(sol.time_bounds, label=sol.name)
-    #         if isinstance(sol, MillerOpt):
+    #         if isinstance(sol, TeacherOpt):
     #             plt.axhline(np.sum(sol.teacher_residuals**2), label=f"{sol.name} teacher", ls="--")
         
