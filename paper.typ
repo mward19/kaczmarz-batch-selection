@@ -25,6 +25,30 @@
 #set text(size: 10pt)
 #set heading(numbering: "1.1.1.")
 
+#show heading.where(level:1): it => {
+  counter(math.equation).update(0)
+  it
+}
+
+// Do section-based equation numbering
+#let num-eq(it) = {
+  set math.equation(numbering: it => {
+    let count = counter(heading.where(level: 1)).at(here()).first()
+    numbering("(1.1)", count, it)
+  })
+  it
+}
+
+// Don't add "Equation" supplement before equation references
+#show ref: it => {
+  let eq = math.equation
+  let el = it.element
+  // Skip all other references.
+  if el == none or el.func() != eq { return it }
+  // Override equation references.
+  link(el.location(), counter(eq).display(at: el.location()))
+}
+
 #align(center)[
   #text(size: 1.1em)[#strong(paper-title)]
   
@@ -221,6 +245,9 @@ We begin by bounding the first bracketed term in @eq-bound-opt-at-teacher-opt fr
 $ <eq-gain-bound>]
 
 === Bounding Teacher Bias on Clean Data
+
+#to-do[Rewrite this section. It's a disaster.]
+
 To bound the second term in @eq-bound-opt-at-teacher-opt, we show that #to-do[(natural language description of techniques)].
 
 First, observe that $delta_j = -2 ba^trp_j (beps - beps^*) ba^trp_j (hat(beps) - beps^*)$ since
@@ -416,8 +443,41 @@ $
   hat(R)_i := epsilon_i^2 - hat(epsilon)_i^2, wide ihat = argmax_(i in {1, ..., n}) hat(R)_i.
 $
 
+We begin with an approach similar to that used for the teacher-optimal method in @sec-teacher-opt.
+Again, @eq-opt-derivation gives $e^((k+1)) = ek - M_ihat$, so we seek a lower bound on $M_ihat$ in order to prove convergence of $ek$ to within some neighborhood of $0$.
+We begin by characterizing the relationship between $hat(R)_i$ and $M_i$ at an arbitrary index $i in {1, ..., n}$ (compare @eq-delta-bound):
 
-(Note that this method closely resembles the teacher-optimal method defined in @eq-teacher-opt-criterion, with just one missing term.) 
+#num-eq[$
+  delta_i := hat(R)_i - M_i = (epsilon_i^2 - hat(epsilon)_i^2) - (epsilon_i^2 - 2 epsilon_i epsilon_i^*) = 2 epsilon_i epsilon_i^* - hat(epsilon)_i^2. 
+$ <eq-delta-bound-rho>]
+
+Using this relationship to begin to bound $M_ihat$, we find that for any index $j in {1, ..., n}$ (compare @eq-opt-at-teacher-opt),
+#num-eq[$
+  M_ihat = hat(R)_ihat - delta_ihat >= hat(R)_j - delta_ihat = M_j + delta_j - delta_ihat.
+$ <eq-opt-at-rho-opt>]
+
+Because @eq-opt-at-rho-opt holds for any $j$, we may average each side of the inequality over every $j in cal(C)$ as before (compare @eq-bound-opt-at-teacher-opt):
+#num-eq[$
+  M_ihat >= 1/cardC sum_(j in cal(C)) M_j + 1/cardC sum_(j in cal(C)) delta_j - delta_ihat
+  >= 
+  underbrace(1/cardC sum_(j in cal(C)) epsilon_j^2, "perfect-teacher"\ "gain")
+  - underbrace(abs(1/cardC sum_(j in cal(C))delta_j), "teacher"\ "bias on" cal(C))
+  - underbrace(abs(delta_ihat), "teacher"\ "bias on" ihat).
+$ <eq-bound-opt-at-rho>]
+
+Note that this inequality is identical to that in @eq-bound-opt-at-teacher-opt, except in that $delta_i$ is now defined by @eq-delta-bound-rho.
+
+=== Bounding Gain
+The lower bound on the first bracketed term is given by @eq-gain-bound.
+
+=== Bounding Teacher Bias on Clean Data
+We now give an upper bound on the second term in @eq-bound-opt-at-rho. #to-do[Complete after rewriting analogue in teacher-opt section.]
+
+// === Bounding Teacher Bias on Selected Row
+// In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $epsilon^*_ihat$. We instead apply the bound given in @eq-delta-bound:
+// $
+//   abs(delta_ihat) <= 2 (sqrt(e^((k))) + norm(beps^*)_oo) tau.
+// $
 
 
 
