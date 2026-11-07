@@ -179,7 +179,7 @@ In @sec-teacher-opt, we demonstrate that the teacher-optimal selection criterion
 Of course, a teacher model that is wildly inaccurate will not yield near-optimal sample selection in @eq-ihat.
 As we proceed in demonstrating convergence results for teacher-model online batch selection methods, we let $teachererr$ represent how near the teacher $hat(bx)$ is to the ground truth solution $bx^*$:
 #num-eq[$
-  teachererr := norm(hat(beps) - beps^*)_oo.
+  teachererr := norm(hat(beps) - beps^*)_2.
 $ <eq-teacher-err>]
 
 Thus when $teachererr = 0$, the teacher is exactly $bx^*$.
@@ -246,8 +246,6 @@ $ <eq-gain-bound>]
 
 === Bounding Teacher Bias on Clean Data
 
-#to-do[Rewrite this section. It's a disaster.]
-
 To bound the second term in @eq-bound-opt-at-teacher-opt, we show that #to-do[(natural language description of techniques)].
 
 First, observe that for any $j in cal(C)$, $delta_j = -2 (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*)$ since $epsilon^*_j = 0$:
@@ -262,20 +260,42 @@ $
   abs(1/cardC sum_(j in cal(C))delta_j) 
   &= (2) / cardC abs(sum_(j in cal(C)) (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*)) \
   &= 2/cardC abs((bx - bx^*)^trp (sum_(j in cal(C)) ba_j ba_j^trp) (hat(bx) - bx^*)) \
-  &= 2/cardC abs((bx - bx^*)^trp A_cal(C)^trp A_cal(C) (hat(bx) - bx^*)) \
   &= 2/cardC abs((A_cal(C) (bx - bx^*))^trp A_cal(C) (hat(bx) - bx^*)) \
+  // &= 2/cardC abs((A_cal(C) (bx - bx^*))^trp A_cal(C) (hat(bx) - bx^*)) \
   &<= 2/cardC norm(A_cal(C) (bx - bx^*)) norm(A_cal(C) (hat(bx) - bx^*)) wide &&#[by Cauchy--Schwarz] \
-  &<= 2/sqrt(cardC) norm(A_cal(C) (bx - bx^*))_2 thin norm(A_cal(C) (hat(bx) - bx^*))_oo \
-  &<= 2/sqrt(cardC) norm(A_cal(C))_2 thin norm(bx - bx^*)_2 thin norm(hat(beps) - beps^*)_oo \ 
+
+  &<= 2/sqrt(cardC) norm(A_cal(C)) thin norm(bx - bx^*) thin norm(hat(beps) - beps^*) \ 
   &<= (2 teachererr sigma_"max" (A_cal(C))) / sqrt(cardC)  sqrt(e^((k))) wide &&#[by @eq-teacher-err] \
   &<= 2 tau sqrt(e^((k))) wide &&#[because $sigma_"max" (A_cal(C)) <= norm(A_cal(C))_F = sqrt(cardC)$].
 $
 
-=== Bounding Teacher Bias on Selected Row
-In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $epsilon^*_ihat$. We instead apply the bound given in @eq-delta-bound #to-do[rederive this bound. use $tau = norm(hat(beps) - beps^*)_2$, and use C--S instead of $oo$-norm]:
-$
-  abs(delta_ihat) <= 2 (sqrt(e^((k))) + norm(beps^*)_oo) tau.
-$
+=== Bounding Teacher Bias on Selected Row <sec-bounding-opt-teacher-bias>
+In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $epsilon^*_ihat$. We instead bound $delta_i$ for an arbitrary index $i$, whether clean or not. Because
+$delta_i &= 2 epsilon_i (epsilon_i^* - hat(epsilon)_i) $,
+#num-eq[$
+  abs(delta_i) &= 2 abs(epsilon_i) abs(epsilon_i^* - hat(epsilon)_i) \
+  // &= 2 abs(ba_i^trp bx - b_i)
+  &<= 2 abs(epsilon_i - epsilon_i^* + epsilon_i^*) abs(epsilon_i^* - hat(epsilon)_i) \
+  &<= 2 (norm(ba_i) norm(bx - bx^*) + norm(beps^*)_oo) norm(beps^* - hat(beps))_2 \
+  &= 2 (sqrt(ek) + norm(beps^*)_oo) teachererr.
+$ <eq-delta-abs-bound-general>]
+
+Thus $abs(delta_ihat) <= 2 (sqrt(ek) + norm(beps^*)_oo) tau.$
+
+// we may bound $abs(epsilon_i)$ as
+// $
+//   abs(epsilon_i) &<= abs(epsilon_i - epsilon_i^*) + abs(epsilon_i^*) \
+//   &<= norm(ba_i^trp) norm(bx - bx^*) + norm(beps^*)_oo \
+//   &= sqrt(ek) + norm(beps^*)_oo,
+// $
+// which leads us to the following bound on $abs(delta_i)$:
+// $
+//   abs(delta_i) &= 2 abs(epsilon_i) abs(epsilon_i^* - hat(epsilon)_i) \
+//   &<= 2 (sqrt(ek) + norm(beps^*)_oo) norm
+// $
+// $
+//   abs(delta_ihat) <= 2 (sqrt(e^((k))) + norm(beps^*)_oo) tau.
+// $
 
 === Combining Bounds
 Putting these three bounds together into @eq-bound-opt-at-teacher-opt, we derive the desired lower bound on $M_ihat$.
@@ -296,7 +316,7 @@ $
 We state this result as @prop-teacher-opt-main-bound.
 
 #proposition(label: <prop-teacher-opt-main-bound>)[
-  When we select the training index $i_k$ using the teacher-optimal criterion (@eq-ihat), the next iteration's error $e^((k+1))$ is related to the previous error by the following inequality:
+  When we select the training index $i_k$ using the teacher-optimal criterion @eq-ihat, the next iteration's error $e^((k+1))$ is related to the previous error by the following inequality:
   #num-eq[$
     e^((k+1)) <= (1 - alpha) e^((k)) + beta sqrt(e^((k))) + gamma,
     \
@@ -365,7 +385,7 @@ $
 
 #let efix = $e_"fixed"$
 #theorem(label: <thm-master>)[
-  Using the teacher-optimal criterion (@eq-ihat), the squared #to-do[(make this more precise)] error converges geometrically toward 
+  Using the teacher-optimal criterion @eq-ihat, the squared #to-do[(make this more precise)] error converges geometrically toward 
   $
     efix = 2 (beta^2/alpha^2 + gamma / alpha),
   $
@@ -461,8 +481,8 @@ Because @eq-opt-at-rho-opt holds for any $j$, we may average each side of the in
   M_ihat >= 1/cardC sum_(j in cal(C)) M_j + 1/cardC sum_(j in cal(C)) delta_j - delta_ihat
   >= 
   underbrace(1/cardC sum_(j in cal(C)) epsilon_j^2, "perfect-teacher"\ "gain")
-  - underbrace(abs(1/cardC sum_(j in cal(C))delta_j), "teacher"\ "bias on" cal(C))
-  - underbrace(abs(delta_ihat), "teacher"\ "bias on" ihat).
+  - underbrace(abs(1/cardC sum_(j in cal(C))delta_j), "bias on" cal(C))
+  - underbrace(abs(delta_ihat), "bias on" ihat).
 $ <eq-bound-opt-at-rho>]
 
 Note that this inequality is identical to that in @eq-bound-opt-at-teacher-opt, except in that $delta_i$ is now defined by @eq-delta-bound-rho.
@@ -470,24 +490,16 @@ Note that this inequality is identical to that in @eq-bound-opt-at-teacher-opt, 
 === Bounding Gain
 The lower bound on the first bracketed term is given by @eq-gain-bound.
 
-=== Bounding Teacher Bias on Clean Data
+=== Bounding Bias on Clean Data
 We now give an upper bound on the second term in @eq-bound-opt-at-rho. #to-do[Complete after rewriting analogue in teacher-opt section.]
 
-// === Bounding Teacher Bias on Selected Row
-// In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $epsilon^*_ihat$. We instead apply the bound given in @eq-delta-bound:
-// $
-//   abs(delta_ihat) <= 2 (sqrt(e^((k))) + norm(beps^*)_oo) tau.
-// $
+=== Bounding Bias on Selected Row
+As in @sec-bounding-opt-teacher-bias, we now bound $abs(delta_i)$ for arbitrary $i in {1, ..., n}$, since $ihat$ may not lie in $cal(C)$.
 
 $
-  abs(1/cardC sum_(j in cal(C)) delta_j) &= 1/cardC abs(sum_(j in cal(C)) (2 epsilon_j epsilon_j^* - hat(epsilon)_j^2)) \
-  &= 1/cardC abs(sum_(j in cal(C)) hat(epsilon)_j^2) \
-  &= 1/cardC abs(sum_(j in cal(C)) (hat(epsilon)_j - epsilon_j^*)^2) \
-  &= 1/cardC norm(hat(beps)_cal(C) - beps^*_cal(C))^2 \
-  &<= norm(hat(beps)_cal(C) - beps^*_cal(C))_oo^2 \
-  &<= tau^2
-  // &= 1/cardC abs(sum_(j in cal(C)) (ba_j^trp (hat(bx) - bx^*))^2) \
-  // &= 1/cardC abs(sum_(j in cal(C)) (norm(ba_j^trp (hat(bx) - bx^*)))) \
+  abs(delta_i) &= abs(2 epsilon_i epsilon_i^* - hat(epsilon)_i^2) \
+  &= abs(2 epsilon_i epsilon_i^* +  (epsilon_i^*)^2 - (epsilon_i^* - hat(epsilon)_i)^2) \
+  &<= #purple-star
 $
 
 
