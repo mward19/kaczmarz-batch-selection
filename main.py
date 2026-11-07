@@ -257,40 +257,6 @@ class Comparison:
         self.plot_dir = "./plots"
         self.name = name
 
-    def plot_residuals(self, title=None, logx=False, logy=False, subset='all'):
-        for i, sol in enumerate(self.solvers):
-            indices = sol.get_subset_indices(subset)
-
-            if subset == "all":
-                scores = sol.scores
-            elif subset == "clean":
-                scores = sol.diagnostics["scores_clean"]
-            else:
-                raise NotImplementedError()
-
-            if i == 0: # Only plot it once, should be the same for all
-                plt.axhline(
-                    np.sum(sol.true_residuals[indices]**2), 
-                    label=f"True solution", ls="--", lw=2, color="black"
-                )
-
-            # Plot the scores throughout training
-            plt.plot(scores, label=sol.name, lw=3)
-            
-            if isinstance(sol, TeacherOpt):
-                plt.axhline(np.sum(sol.teacher_residuals[indices]**2), label=f"{sol.name} teacher", ls="--")
-            
-
-        plt.xlabel("Iteration")
-        plt.ylabel("Sum of Squared Errors (SSE)")
-        plt.legend()
-        plt.title("Comparing convergence of Kaczmarz methods" if title is None else title)
-
-        if logx:
-            plt.xscale('log')
-        if logy:
-            plt.yscale('log')
-
     def plot_parameter_errors(self, title=None, logx=False, logy=False):
         for sol in self.solvers:
             plt.plot(sol.parameter_errors, label=sol.name, lw=3)
@@ -305,9 +271,3 @@ class Comparison:
         if logy:
             plt.yscale('log')
 
-    # def plot_bound_diff_eq(self, title=None, name_suffix='', logx=False, logy=False):
-    #     for sol in self.solvers:
-    #         plt.plot(sol.time_bounds, label=sol.name)
-    #         if isinstance(sol, TeacherOpt):
-    #             plt.axhline(np.sum(sol.teacher_residuals**2), label=f"{sol.name} teacher", ls="--")
-        

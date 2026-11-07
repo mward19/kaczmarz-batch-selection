@@ -250,20 +250,20 @@ $ <eq-gain-bound>]
 
 To bound the second term in @eq-bound-opt-at-teacher-opt, we show that #to-do[(natural language description of techniques)].
 
-First, observe that $delta_j = -2 ba^trp_j (beps - beps^*) ba^trp_j (hat(beps) - beps^*)$ since
+First, observe that for any $j in cal(C)$, $delta_j = -2 (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*)$ since $epsilon^*_j = 0$:
 $
   delta_j &= 2 epsilon_j (epsilon_j^* - hat(epsilon)_j) \
   &= - 2 (epsilon_j - epsilon_j^*) (hat(epsilon)_j - epsilon_j^*) \
-  &= -2 ba^trp_j (bx - bx^*) ba^trp_j (hat(bx) - bx^*).
+  &= -2 (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*).
 $
 
 This allows us to rewrite the teacher bias term as the inner product of two vectors, which we can then bound with Cauchy--Schwarz.
 $
   abs(1/cardC sum_(j in cal(C))delta_j) 
-  &= (2) / cardC abs(sum_(j in cal(C)) ba^trp_j (bx - bx^*) ba^trp_j (hat(bx) - bx^*)) \
-  &= private(2/cardC abs((bx - bx^*)^trp (sum_(j in cal(C))  ba_j ba_j^trp) (hat(bx) - bx^*)) \ )
-  &=  #purple-star\
-  &= (2)/cardC abs((A_cal(C) (bx - bx^*))^trp (A_cal(C) (hat(bx) - bx^*))) \
+  &= (2) / cardC abs(sum_(j in cal(C)) (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*)) \
+  &= 2/cardC abs((bx - bx^*)^trp (sum_(j in cal(C)) ba_j ba_j^trp) (hat(bx) - bx^*)) \
+  &= 2/cardC abs((bx - bx^*)^trp A_cal(C)^trp A_cal(C) (hat(bx) - bx^*)) \
+  &= 2/cardC abs((A_cal(C) (bx - bx^*))^trp A_cal(C) (hat(bx) - bx^*)) \
   &<= 2/cardC norm(A_cal(C) (bx - bx^*)) norm(A_cal(C) (hat(bx) - bx^*)) wide &&#[by Cauchy--Schwarz] \
   &<= 2/sqrt(cardC) norm(A_cal(C) (bx - bx^*))_2 thin norm(A_cal(C) (hat(bx) - bx^*))_oo \
   &<= 2/sqrt(cardC) norm(A_cal(C))_2 thin norm(bx - bx^*)_2 thin norm(hat(beps) - beps^*)_oo \ 
@@ -272,7 +272,7 @@ $
 $
 
 === Bounding Teacher Bias on Selected Row
-In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $epsilon^*_ihat$. We instead apply the bound given in @eq-delta-bound:
+In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $epsilon^*_ihat$. We instead apply the bound given in @eq-delta-bound #to-do[rederive this bound. use $tau = norm(hat(beps) - beps^*)_2$, and use C--S instead of $oo$-norm]:
 $
   abs(delta_ihat) <= 2 (sqrt(e^((k))) + norm(beps^*)_oo) tau.
 $
@@ -478,6 +478,17 @@ We now give an upper bound on the second term in @eq-bound-opt-at-rho. #to-do[Co
 // $
 //   abs(delta_ihat) <= 2 (sqrt(e^((k))) + norm(beps^*)_oo) tau.
 // $
+
+$
+  abs(1/cardC sum_(j in cal(C)) delta_j) &= 1/cardC abs(sum_(j in cal(C)) (2 epsilon_j epsilon_j^* - hat(epsilon)_j^2)) \
+  &= 1/cardC abs(sum_(j in cal(C)) hat(epsilon)_j^2) \
+  &= 1/cardC abs(sum_(j in cal(C)) (hat(epsilon)_j - epsilon_j^*)^2) \
+  &= 1/cardC norm(hat(beps)_cal(C) - beps^*_cal(C))^2 \
+  &<= norm(hat(beps)_cal(C) - beps^*_cal(C))_oo^2 \
+  &<= tau^2
+  // &= 1/cardC abs(sum_(j in cal(C)) (ba_j^trp (hat(bx) - bx^*))^2) \
+  // &= 1/cardC abs(sum_(j in cal(C)) (norm(ba_j^trp (hat(bx) - bx^*)))) \
+$
 
 
 

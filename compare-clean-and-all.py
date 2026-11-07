@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -23,7 +23,7 @@ def _(mo):
     b_noise_scale = 0.2
     teacher_noise_scale = 0.1
 
-    iters = 50000
+    iters = 5000
     seed = 1
 
     _steps = np.round(np.geomspace(0.01, 300, 1000), decimals=2)
@@ -103,11 +103,10 @@ def _(
 @app.cell
 def _(Comparison, b_noise_scale, common_params, iters, np, plt, sols):
     _comparison = Comparison(sols)
-    _comparison.plot_residuals(
+    _comparison.plot_parameter_errors(
         title=f"Comparing Kaczmarz convergence\n(batch size {common_params['batch_size']}, noise std {b_noise_scale})",
         logx=True,
-        logy=True,
-        subset="all"
+        logy=True
     )
 
     _bound_diff_eq = np.array(sols[0].diagnostics["bound_diff_eq"])
@@ -117,7 +116,7 @@ def _(Comparison, b_noise_scale, common_params, iters, np, plt, sols):
 
     # plt.plot(sols[0].diagnostics["bounds"], color="tab:red", label="Bound (PP)")
     _iter_range = np.arange(iters)
-    _e0 = sols[0].scores[0]
+    _e0 = sols[0].parameter_errors[0]
     _bound_peter_paul_floor = sols[0].diagnostics["bound_peter_paul_floor"]
     plt.plot(_iter_range + 1, (1 - sols[0].alpha / 2)**_iter_range * (_e0 - _bound_peter_paul_floor) + _bound_peter_paul_floor, color="tab:red", label="Bound (PP)", lw=1)
     # plt.axhline(_bound_peter_paul_floor, color="tab:red", ls="--", label="Floor (PP)", lw=1)
@@ -154,11 +153,10 @@ def _(sols):
 @app.cell
 def _(Comparison, b_noise_scale, common_params, iters, np, plt, sols):
     _comparison = Comparison(sols)
-    _comparison.plot_residuals(
-        title=f"Comparing Kaczmarz convergence on clean set\n(batch size {common_params['batch_size']}, noise std {b_noise_scale})",
+    _comparison.plot_parameter_errors(
+        title=f"Parameter error\n(batch size {common_params['batch_size']}, noise std {b_noise_scale})",
         logx=True,
-        logy=True,
-        subset="clean"
+        logy=True
     )
 
     _bound_diff_eq = np.array(sols[0].diagnostics["bound_diff_eq"])
@@ -168,7 +166,7 @@ def _(Comparison, b_noise_scale, common_params, iters, np, plt, sols):
 
     # plt.plot(sols[0].diagnostics["bounds"], color="tab:red", label="Bound (PP)")
     iter_range = np.arange(iters)
-    _e0 = sols[0].scores[0]
+    _e0 = sols[0].parameter_errors[0]
     _bound_peter_paul_floor = sols[0].diagnostics["bound_peter_paul_floor"]
     plt.plot(iter_range + 1, (1 - sols[0].alpha / 2)**iter_range * (_e0 - _bound_peter_paul_floor) + _bound_peter_paul_floor, color="tab:red", label="Bound (PP)", lw=1)
     plt.axhline(_bound_peter_paul_floor, color="tab:red", ls="--", label="Floor (PP)", lw=1)
@@ -192,18 +190,17 @@ def _(sols):
 @app.cell
 def _(iters, np, plt, sols):
     _iter_range = np.arange(iters)
-    plt.semilogy(_iter_range, sols[0].diagnostics["floor_deviation"], label="Fixed-point shift deviation", ls="-", color="tab:purple", lw=2)
+    plt.semilogy(_iter_range, sols[0].parameter_errors[:iters], label="Squared parameter error", ls="-", color="tab:purple", lw=2)
     return
 
 
 @app.cell
 def _(Comparison, b_noise_scale, common_params, iters, np, plt, sols):
     _comparison = Comparison(sols)
-    _comparison.plot_residuals(
+    _comparison.plot_parameter_errors(
         title=f"Comparing Kaczmarz convergence\n(batch size {common_params['batch_size']}, noise std {b_noise_scale})",
         logx=True,
-        logy=True,
-        subset="all"
+        logy=True
     )
 
     _bound_diff_eq = np.array(sols[0].diagnostics["bound_diff_eq"])
@@ -213,7 +210,7 @@ def _(Comparison, b_noise_scale, common_params, iters, np, plt, sols):
 
     # plt.plot(sols[0].diagnostics["bounds"], color="tab:red", label="Bound (PP)")
     _iter_range = np.arange(iters)
-    _e0 = sols[0].scores[0]
+    _e0 = sols[0].parameter_errors[0]
     _bound_peter_paul_floor = sols[0].diagnostics["bound_peter_paul_floor"]
     plt.plot(_iter_range + 1, ((1 - sols[0].alpha / 2)**_iter_range * (_e0 - _bound_peter_paul_floor) + _bound_peter_paul_floor)**0.5, color="tab:red", label="Bound (PP)", lw=1)
     # plt.axhline(_bound_peter_paul_floor, color="tab:red", ls="--", label="Floor (PP)", lw=1)
