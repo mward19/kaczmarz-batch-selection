@@ -2,10 +2,14 @@
 #show: template.with(font-mode: "computer")
 
 #import "@preview/hydra:0.6.3": hydra
-#let paper-title = [Convergence analysis of teacher-model OBS methods in LR]
+#let hydra = hydra.with(use-last: true)
+#let paper-title = [Convergence analysis of teacher-model online batch selection methods in linear regression]
 #set page(header: context {
   set text(size: 0.9em)
-  emph(paper-title)
+  // Skip the first page
+  if here().page() == 1 {
+    return
+  }
   h(1fr)
   emph(hydra(2))
 })
@@ -74,7 +78,8 @@
 #let bx = $bold(x)$
 #let ba = $bold(a)$
 #let bb = $bold(b)$
-#let beps = $bold(epsilon)$
+#let eps = $epsilon$
+#let beps = $bold(eps)$
 With some $n, d in NN$ where $n > d$, we define the overdetermined linear system 
 #num-eq[$
     A bx^* = bb + beps^*, wide A = vec(ba_1^trp, dots.v, ba_n^trp) in RR^(n times d), wide bx^* in RR^d, wide bb, beps^* in RR^n,
@@ -94,14 +99,14 @@ We also assume that the noise vector $beps^*$ is sufficiently sparse to ensure t
 Given $A$ and $bb$ (but not $beps$), we seek to learn $bx^*$ using Kaczmarz methods. That is, we begin with an initial guess $bx^((0)) in RR^d$, and we iteratively refine it by projecting the current solution $bx^((k))$ onto problem constraints (rows of the system in @eq:orig-problem) selected by some criterion. That is, if we select row $i_k$ of the system following the $k$th iteration, we update $bx^((k))$ as follows:
 #num-eq[$
   bx^((k + 1)) &= bx^((k)) + (b_i_k - innerproduct(ba_i_k, bx^((k)))) / (norm(ba_i_k)^2) ba_i_k \
-  &= bx^((k)) - epsilon^((k))_i_k ba_i_k, wide "where we define" #h(0.5em) beps^((k)) = vec(epsilon^((k))_1, dots.v, epsilon^((k))_n) := A bx^((k)) - bb.
+  &= bx^((k)) - eps^((k))_i_k ba_i_k, wide "where we define" #h(0.5em) beps^((k)) = vec(eps^((k))_1, dots.v, eps^((k))_n) := A bx^((k)) - bb.
 $ <eq-kaczmarz>]
 
 #private[
-    Holds because $- epsilon^((k))_i ba_i
+    Holds because $- eps^((k))_i ba_i
         &= (b_i - ba_i^trp bx^((k))) ba_i$.
 
-    Note that $epsilon_i^((k)) = ba_i^trp bx^((k)) - b_i$.
+    Note that $eps_i^((k)) = ba_i^trp bx^((k)) - b_i$.
 
 ]
 
@@ -119,38 +124,38 @@ In order to accelerate convergence of $bx^((k))$ to $bx^*$, we seek an $i_k$ at 
 
 Using the abbreviations 
 #num-eq[$
-    i := i_k, quad epsilon_i := epsilon_i^((k)), quad "and" quad bx := bx^((k)).
+    i := i_k, quad eps_i := eps_i^((k)), quad "and" quad bx := bx^((k)).
 $ <eq-kth-abbreviations>]
 we will expand $be^((k+1)) = norm(bx^((k+1)) - bx^*)$ using @eq-kaczmarz.
 
 First note that
 #num-eq[$
   ba_i^trp (bx - bx^*) &= (ba_i^trp bx - b_i) - (ba_i^trp bx^* - b_i) \
-  &= epsilon_i - epsilon_i^*.
+  &= eps_i - eps_i^*.
 $ <eq-expansion-eps>]
 
 We expand the expression for the convergence of the $(k+1)$th iterate $bx^((k+1))$ in terms of the $k$th iteration (using the abbreviations given in @eq-kth-abbreviations):
 #num-eq[$
   e^((k+1)) = norm(bx^((k+1)) - bx^*)^2
-  &= norm(bx - epsilon_i ba_i - bx^*)^2 \
-  &= norm((bx - bx^*) - epsilon_i ba_i)^2 \
-  &= norm(bx - bx^*)^2 + epsilon_i^2 norm(ba_i)^2 - 2 epsilon_i ba_i^trp (bx - bx^*) \
-  &= e^((k)) + epsilon_i^2 - 2 epsilon_i (epsilon_i - epsilon_i^*) wide #[by @eq-expansion-eps] \
-  &= e^((k)) - epsilon_i^2 + 2 epsilon_i epsilon_i^* \
+  &= norm(bx - eps_i ba_i - bx^*)^2 \
+  &= norm((bx - bx^*) - eps_i ba_i)^2 \
+  &= norm(bx - bx^*)^2 + eps_i^2 norm(ba_i)^2 - 2 eps_i ba_i^trp (bx - bx^*) \
+  &= e^((k)) + eps_i^2 - 2 eps_i (eps_i - eps_i^*) wide #[by @eq-expansion-eps] \
+  &= e^((k)) - eps_i^2 + 2 eps_i eps_i^* \
   #private[$ 
-    &= e^((k)) - epsilon_i^2 + 2 epsilon_i epsilon_i^* - (epsilon_i^*)^2 + (epsilon_i^*)^2 \
-    &= e^((k)) - (epsilon_i - epsilon_i^*)^2 + (epsilon_i^*)^2 \
+    &= e^((k)) - eps_i^2 + 2 eps_i eps_i^* - (eps_i^*)^2 + (eps_i^*)^2 \
+    &= e^((k)) - (eps_i - eps_i^*)^2 + (eps_i^*)^2 \
   $]
   &= e^((k)) - M_i
 $ <eq-opt-derivation>]
 where $M_i$ abbreviates $M_i^((k))$, the _optimal selection criterion_, which is defined as
 #num-eq[$
-  M_i^((k)) := epsilon_i^2 - 2 epsilon_i epsilon_i^* = (epsilon_i - epsilon_i^*)^2 - (epsilon_i^*)^2.
+  M_i^((k)) := eps_i^2 - 2 eps_i eps_i^* = (eps_i - eps_i^*)^2 - (eps_i^*)^2.
 $ <eq-opt-criterion>]
 
 Thus, if we seek to minimize the distance between the next estimate $bx$ of $bx^*$, the optimal formula for selecting $i$ at some fixed iteration is given by
 #num-eq[$
-  i^* = argmax_(i in {1, ..., n}) M_i, wide M_i = (epsilon_i - epsilon_i^*)^2 - (epsilon_i^*)^2.
+  i^* = argmax_(i in {1, ..., n}) M_i, wide M_i = (eps_i - eps_i^*)^2 - (eps_i^*)^2.
 $ <eq-i-star>]
 
 #to-do[Write about how @eq-opt-derivation motivates maximizing $M_i$.]
@@ -162,7 +167,7 @@ However, in practice, we do not have access to the true solution $bx^*$. Say we 
 $ <eq-teacher-residual>]
 Because we hope that $hat(bx)$ can "teach" us something about $bx^*$, we call it the _teacher_. We define the _teacher-optimal selection criterion_ much as we defined the optimal selection criterion $M_i^((k))$, but using the teacher's residuals $hat(beps)$:
 #num-eq[$
-  hat(M)_i^((k)) :=  epsilon_i^2 - 2 epsilon_i hat(epsilon)_i = (epsilon_i - hat(epsilon)_i)^2 - hat(epsilon)_i^2,
+  hat(M)_i^((k)) :=  eps_i^2 - 2 eps_i hat(eps)_i = (eps_i - hat(eps)_i)^2 - hat(eps)_i^2,
 $ <eq-teacher-opt-criterion>]
 which we abbreviate as $hat(M)_i$ when the iteration index $k$ is clear or arbitrary.
 
@@ -194,12 +199,6 @@ In this section, we give convergence bounds and computational results for full-d
 
 == Teacher-Optimal Method <sec-teacher-opt>
 
-#to-do[
-  - Theorems for teacher-optimal method (single sample)
-    - Main lemmas
-    - Diff eq / iterative / new method? bound proof using said lemmas
-]
-
 We demonstrate the exact relationship between the optimal criterion $M_i$ and the teacher-optimal criterion $hat(M)_i$.
 
 #let ek = $e^((k))$
@@ -207,7 +206,7 @@ Recalling @eq-ihat, we select $ihat = argmax_i hat(M)_i$ at each iteration, so @
 
 First, we pin down the exact relationship between $hat(M)_i$ and $M_i$ at an arbitrary index $i in {1, ..., n}$, using @eq-opt-criterion and @eq-teacher-opt-criterion.
 #num-eq[$
-  delta_i &:= hat(M)_i - M_i &= (epsilon_i^2 - 2 epsilon_i hat(epsilon)_i) - (epsilon_i^2 - 2 epsilon_i epsilon_i^*) = 2 epsilon_i (epsilon_i^* - hat(epsilon)_i).
+  delta_i &:= hat(M)_i - M_i &= (eps_i^2 - 2 eps_i hat(eps)_i) - (eps_i^2 - 2 eps_i eps_i^*) = 2 eps_i (eps_i^* - hat(eps)_i).
 $ <eq-delta-bound>]
 
 Using this relationship, we may place a lower bound on $M_ihat$. Letting $j in {1, ..., n}$ represent any index, we have $hat(M)_ihat >= hat(M)_j$ by the definition of $ihat$, so
@@ -220,14 +219,14 @@ This bound applies for any index $j$, so we may average it for all $j$ in the cl
 #num-eq[$
   M_ihat >= 1/cardC sum_(j in cal(C)) M_j + 1/cardC sum_(j in cal(C)) delta_j - delta_ihat
   >= 
-  underbrace(1/cardC sum_(j in cal(C)) epsilon_j^2, "perfect-teacher"\ "gain")
+  underbrace(1/cardC sum_(j in cal(C)) eps_j^2, "perfect-teacher"\ "gain")
   - underbrace(abs(1/cardC sum_(j in cal(C))delta_j), "teacher"\ "bias on" cal(C))
-  - underbrace(abs(delta_ihat), "teacher"\ "bias on" ihat).
+  - underbrace(delta_ihat, "teacher"\ "bias on" ihat).
 $ <eq-bound-opt-at-teacher-opt>]
 
 Viewing this bound in the context of @eq-opt-derivation, we have
 $
-  e^((k+1)) &= e^((k)) - M_ihat <= e^((k)) - 1/cardC sum_(j in cal(C)) epsilon_j^2 + abs(1/cardC sum_(j in cal(C))delta_j) + abs(delta_ihat).
+  e^((k+1)) &= e^((k)) - M_ihat <= e^((k)) - 1/cardC sum_(j in cal(C)) eps_j^2 + abs(1/cardC sum_(j in cal(C))delta_j) - delta_ihat.
 $
 
 We will further extend this bound so that it may be written in terms of only $ek$ and system constants computable before the start of training. This will allow us to apply it recursively to derive a bound on $ek$ in terms of only system constants and $e^((0))$, the initial error.
@@ -237,8 +236,8 @@ We will further extend this bound so that it may be written in terms of only $ek
 === Bounding Gain
 We begin by bounding the first bracketed term in @eq-bound-opt-at-teacher-opt from below. This term is independent of the teacher, so its bound will depend only on the current iterate $bx^((k))$ (again abbreviated to $bx$) and the clean rows of the system.
 #num-eq[$
-  1/cardC sum_(j in cal(C)) epsilon_j^2 
-  &= 1/cardC sum_(j in cal(C)) (epsilon_j - epsilon_j^*)^2 \
+  1/cardC sum_(j in cal(C)) eps_j^2 
+  &= 1/cardC sum_(j in cal(C)) (eps_j - eps_j^*)^2 \
   &= 1/cardC norm(A_cal(C) (bx - bx^*))^2 \
   &>= (sigma_"min" (A_cal(C))^2) / cardC norm(bx - bx^*)^2 \
   &= (sigma_"min" (A_cal(C))^2) / cardC e^((k))
@@ -248,10 +247,10 @@ $ <eq-gain-bound>]
 
 To bound the second term in @eq-bound-opt-at-teacher-opt, we show that #to-do[(natural language description of techniques)].
 
-First, observe that for any $j in cal(C)$, $delta_j = -2 (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*)$ since $epsilon^*_j = 0$:
+First, observe that for any $j in cal(C)$, $delta_j = -2 (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*)$ since $eps^*_j = 0$:
 $
-  delta_j &= 2 epsilon_j (epsilon_j^* - hat(epsilon)_j) \
-  &= - 2 (epsilon_j - epsilon_j^*) (hat(epsilon)_j - epsilon_j^*) \
+  delta_j &= 2 eps_j (eps_j^* - hat(eps)_j) \
+  &= - 2 (eps_j - eps_j^*) (hat(eps)_j - eps_j^*) \
   &= -2 (bx - bx^*)^trp ba_j ba^trp_j (hat(bx) - bx^*).
 $
 
@@ -270,27 +269,27 @@ $
 $
 
 === Bounding Teacher Bias on Selected Row <sec-bounding-opt-teacher-bias>
-In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $epsilon^*_ihat$. We instead bound $delta_i$ for an arbitrary index $i$, whether clean or not. Because
-$delta_i &= 2 epsilon_i (epsilon_i^* - hat(epsilon)_i) $,
+In bounding the last term of @eq-bound-opt-at-teacher-opt, we must first note that the teacher-optimal index $ihat$ may not lie in $cal(C)$, so we cannot make assumptions about the system noise $eps^*_ihat$. We instead bound $delta_i$ for an arbitrary index $i$, whether clean or not. Because
+$delta_i &= 2 eps_i (eps_i^* - hat(eps)_i) $,
 #num-eq[$
-  abs(delta_i) &= 2 abs(epsilon_i) abs(epsilon_i^* - hat(epsilon)_i) \
+  delta_ihat <= abs(delta_i) &= 2 abs(eps_i) abs(eps_i^* - hat(eps)_i) \
   // &= 2 abs(ba_i^trp bx - b_i)
-  &<= 2 abs(epsilon_i - epsilon_i^* + epsilon_i^*) abs(epsilon_i^* - hat(epsilon)_i) \
+  &<= 2 abs(eps_i - eps_i^* + eps_i^*) abs(eps_i^* - hat(eps)_i) \
   &<= 2 (norm(ba_i) norm(bx - bx^*) + norm(beps^*)_oo) norm(beps^* - hat(beps))_2 \
   &= 2 (sqrt(ek) + norm(beps^*)_oo) teachererr.
 $ <eq-delta-abs-bound-general>]
 
-Thus $abs(delta_ihat) <= 2 (sqrt(ek) + norm(beps^*)_oo) tau.$
+Thus $delta_ihat <= 2 (sqrt(ek) + norm(beps^*)_oo) tau.$
 
-// we may bound $abs(epsilon_i)$ as
+// we may bound $abs(eps_i)$ as
 // $
-//   abs(epsilon_i) &<= abs(epsilon_i - epsilon_i^*) + abs(epsilon_i^*) \
+//   abs(eps_i) &<= abs(eps_i - eps_i^*) + abs(eps_i^*) \
 //   &<= norm(ba_i^trp) norm(bx - bx^*) + norm(beps^*)_oo \
 //   &= sqrt(ek) + norm(beps^*)_oo,
 // $
 // which leads us to the following bound on $abs(delta_i)$:
 // $
-//   abs(delta_i) &= 2 abs(epsilon_i) abs(epsilon_i^* - hat(epsilon)_i) \
+//   abs(delta_i) &= 2 abs(eps_i) abs(eps_i^* - hat(eps)_i) \
 //   &<= 2 (sqrt(ek) + norm(beps^*)_oo) norm
 // $
 // $
@@ -321,21 +320,21 @@ We state this result as @prop-teacher-opt-main-bound.
     e^((k+1)) <= (1 - alpha) e^((k)) + beta sqrt(e^((k))) + gamma,
     \
     alpha := (sigma_"min" (A_cal(C))^2) / cardC, 
-    wide beta := 4 tau, wide gamma = 2 norm(beps^*)_oo tau.
+    wide beta := 4 tau, wide gamma := 2 norm(beps^*)_oo tau.
   $ <eq-master-ineq>]
 ]
 
 #to-do[Explain the value of this proposition. Note that when $tau = 0$, or $hat(bx) = bx^*$, the error converges to 0 geometrically in spite of the fact that $beps^* != bold(0)$.]
 
 
-=== Convergence Results
+=== Convergence Results <sec-convergence-results-opt>
 There are many ways to recursively apply @prop-teacher-opt-main-bound to bound the error at an arbitrary iteration using only constants and the initial state of training. In this section, we give three different methods, each of which gives a different bound, and none of which is strictly better than another #to-do[(justify this claim)].
 
-==== Convergence of Teacher-Optimal Selection Criterion (Via Fixed-Point Shift)
+==== Convergence of Teacher-Optimal Selection Criterion (Via Fixed-Point Shift) <sec-convergence-fixed-point-opt>
 First, we determine the fixed point of the bound in @prop-teacher-opt-main-bound. Let $r$ be the square root of this error fixed point, so that the fixed point equation becomes quadratic:
-$
+#num-eq[$
   r^2 = (1 - alpha) r^2 + beta r + gamma wide ==> wide r = (beta plus sqrt(beta^2 + 4 alpha gamma)) / (2 alpha).
-$
+$ <eq-fixed-point-r>]
 
 (We use the upper root because $beta - sqrt(beta^2 + 4 alpha gamma) < beta - sqrt(beta^2) = 0$, but $ek$ is nonnegative.)
 
@@ -343,7 +342,7 @@ When $sqrt(e^((k))) = r$, @prop-teacher-opt-main-bound gives $sqrt(e^((k+1))) <=
 
 #let dk = $d^((k))$
 Assume $sqrt(e^((k))) >= r$, and define $dk := sqrt(e^((k))) - r$ to be the distance of the square root error from the fixed point, and rewrite @prop-teacher-opt-main-bound as a quadratic in $d^((k))$ using $e^((k)) = (dk + r)^2$. 
-As we have done with $bx^((k))$, we abbreviate $d^((k))$ to $d$.
+As we have done with $bx^((k))$ and $beps^((k))$, we abbreviate $d^((k))$ to $d$.
 #num-eq[$
   (d^((k+1)) + r)^2 = e^((k+1)) &<= (1 - alpha) (d + r)^2 + beta (d + r) + gamma \
   &= (1 - alpha) (d^2 + 2  d r + r^2) + beta (d + r) + gamma \
@@ -379,6 +378,8 @@ which, by application of the definition of $dk$, gives
 $
   ek &<= (rho^k sqrt(e^((0)) - r) + r)^2.
 $
+
+#to-do[Prove that this converges to $r^2$, discuss]
 
 ==== Convergence of Teacher-Optimal Selection Criterion (Via Peter--Paul)
 @prop-teacher-opt-main-bound gives a bound on $e^((k+1))$ in terms of $e^((k))$. We now use it to derive a bound on $e^((k))$ in terms of only $e^((0))$ and other information available from the start of training.
@@ -459,16 +460,16 @@ $
 
 == Reducible Holdout Loss Selection
 In #link("https://arxiv.org/pdf/2206.07137")[_Prioritized Training on Points that are Learnable, Worth Learning, and Not Yet Learnt_], Mindermann et al. propose (in the context of deep learning) another sample selection method, _reducible holdout loss selection (RHO-LOSS)._ We may use this method in a modified form #footnote[Mindermann et al. define RHO-LOSS using a "holdout" dataset, which is simply a subset of the training data reserved for training the teacher model (here, our teacher model is $hat(bx)$). Because we assume that our teacher is an arbitrary fixed vector and do not discuss the "training" of our teacher, we instead define the holdout loss using the teacher residual.] for the Kaczmarz method. Using the same notation as in @sec-introduction, we define RHO-LOSS by the selection criterion
-$
-  hat(R)_i := epsilon_i^2 - hat(epsilon)_i^2, wide ihat = argmax_(i in {1, ..., n}) hat(R)_i.
-$
+#num-eq[$
+  hat(R)_i := eps_i^2 - hat(eps)_i^2, wide ihat = argmax_(i in {1, ..., n}) hat(R)_i.
+$ <eq-rho-criterion>]
 
 We begin with an approach similar to that used for the teacher-optimal method in @sec-teacher-opt.
 Again, @eq-opt-derivation gives $e^((k+1)) = ek - M_ihat$, so we seek a lower bound on $M_ihat$ in order to prove convergence of $ek$ to within some neighborhood of $0$.
 We begin by characterizing the relationship between $hat(R)_i$ and $M_i$ at an arbitrary index $i in {1, ..., n}$ (compare @eq-delta-bound):
 
 #num-eq[$
-  delta_i := hat(R)_i - M_i = (epsilon_i^2 - hat(epsilon)_i^2) - (epsilon_i^2 - 2 epsilon_i epsilon_i^*) = 2 epsilon_i epsilon_i^* - hat(epsilon)_i^2. 
+  delta_i := hat(R)_i - M_i = (eps_i^2 - hat(eps)_i^2) - (eps_i^2 - 2 eps_i eps_i^*) = 2 eps_i eps_i^* - hat(eps)_i^2. 
 $ <eq-delta-bound-rho>]
 
 Using this relationship to begin to bound $M_ihat$, we find that for any index $j in {1, ..., n}$ (compare @eq-opt-at-teacher-opt),
@@ -480,9 +481,9 @@ Because @eq-opt-at-rho-opt holds for any $j$, we may average each side of the in
 #num-eq[$
   M_ihat >= 1/cardC sum_(j in cal(C)) M_j + 1/cardC sum_(j in cal(C)) delta_j - delta_ihat
   >= 
-  underbrace(1/cardC sum_(j in cal(C)) epsilon_j^2, "perfect-teacher"\ "gain")
+  underbrace(1/cardC sum_(j in cal(C)) eps_j^2, "perfect-teacher"\ "gain")
   - underbrace(abs(1/cardC sum_(j in cal(C))delta_j), "bias on" cal(C))
-  - underbrace(abs(delta_ihat), "bias on" ihat).
+  - underbrace(delta_ihat, "bias on" ihat).
 $ <eq-bound-opt-at-rho>]
 
 Note that this inequality is identical to that in @eq-bound-opt-at-teacher-opt, except in that $delta_i$ is now defined by @eq-delta-bound-rho.
@@ -491,26 +492,53 @@ Note that this inequality is identical to that in @eq-bound-opt-at-teacher-opt, 
 The lower bound on the first bracketed term is given by @eq-gain-bound.
 
 === Bounding Bias on Clean Data
-We now give an upper bound on the second term in @eq-bound-opt-at-rho. #to-do[Complete after rewriting analogue in teacher-opt section.]
+We now give an upper bound on the second term in @eq-bound-opt-at-rho. For any $j in cal(C)$, $eps_j^* = 0$, so $delta_j = - hat(eps)_j^2 = - (hat(eps)_j - eps_j^*)^2 < 0$. Thus
+$
+  abs(1/cardC sum_(j in cal(C)) delta_j) &= 1/cardC sum_(j in cal(C)) (hat(eps)_j - eps_j^*)^2 = 1/cardC norm(hat(beps)_cal(C) - beps^*_cal(C))_2 <= 1/cardC norm(hat(beps) - beps^*)_2 = tau/cardC.
+$
 
 === Bounding Bias on Selected Row
-As in @sec-bounding-opt-teacher-bias, we now bound $abs(delta_i)$ for arbitrary $i in {1, ..., n}$, since $ihat$ may not lie in $cal(C)$.
+As in @sec-bounding-opt-teacher-bias, we now place an upper bound on $delta_i$ for arbitrary $i in {1, ..., n}$, since $ihat$ may not lie in $cal(C)$. We expand the definition of $delta_i$ by writing terms as differences from $eps_i^*$ and applying Cauchy--Schwarz:
 
 $
-  abs(delta_i) &= abs(2 epsilon_i epsilon_i^* - hat(epsilon)_i^2) \
-  &= abs(2 epsilon_i epsilon_i^* +  (epsilon_i^*)^2 - (epsilon_i^* - hat(epsilon)_i)^2) \
-  &<= #purple-star
+  delta_i &= 2 eps_i eps_i^* - hat(eps)_i^2 \
+  &= 2 (eps_i - eps_i^*) (eps_i^*) - (hat(eps)_i - eps_i^*)^2 - 2 eps_i^* (hat(eps)_i - eps_i^*) + (eps_i^*)^2 \
+  &= 2 ba_i^trp (bx - bx^*) eps_i^* - (hat(eps)_i - eps_i^*)^2 - 2 eps_i^* (hat(eps)_i - eps_i^*) + (eps_i^*)^2 \
+  &<= 2 sqrt(ek) norm(beps^*)_oo + 2 norm(hat(beps) - beps^*) _2 norm(beps^*)_oo + norm(beps^*)_oo^2 \  
+  &<= 2 norm(beps^*)_oo (sqrt(ek) + tau + 1/2 norm(beps^*)_oo) \
+$
+This holds for any $i in {1, ..., n}$, so
+$
+  delta_ihat <= 2 norm(beps^*)_oo (sqrt(ek) + tau + 1/2 norm(beps^*)_oo).
 $
 
+=== Combining Bounds
+We now extend the bound given in @eq-bound-opt-at-rho:
 
+#num-eq[$
+  M_ihat &>= (sigma_"min" (A_cal(C))^2) / cardC e^((k)) - tau/cardC - 2 norm(beps^*)_oo (sqrt(ek) + tau + 1/2 norm(beps^*)_oo) \
+  &= (sigma_"min" (A_cal(C))^2) / cardC e^((k)) - 2 norm(beps^*)_oo sqrt(ek) - tau/cardC - (2 tau + norm(beps^*)_oo) norm(beps^*)_oo
+$]
 
+Applying this bound to the relation $e^((k+1)) = ek - M_ihat$ given in @eq-opt-derivation, we derive the following proposition:
 
-#to-do[
-  #v(10em)
-  - Theorems for RHO-LOSS (single sample)
-    - Modification of teacher-optimal lemmas for RHO-LOSS if possible?
-    - Bound proof
-  ]
+#proposition(label: <prop-rho-main-bound>)[
+  When we select the training index $i_k$ using the RHO-LOSS criterion @eq-rho-criterion, the next iteration's error $e^((k+1))$ is related to the previous error by the following inequality:
+  #num-eq[$
+    e^((k+1)) <= (1 - alpha) e^((k)) + beta sqrt(e^((k))) + gamma,
+    \
+    alpha := (sigma_"min" (A_cal(C))^2) / cardC, 
+    wide beta := 2 norm(beps^*)_oo, wide gamma := tau/cardC + (2 tau + norm(beps^*)_oo) norm(beps^*)_oo.
+  $ <eq-master-ineq-rho>]
+]
+
+Comparing the above proposition to @prop-teacher-opt-main-bound, we see that the RHO-LOSS bound has an identical $alpha$ term, a $beta$ term depending on $beps^*$ instead of the teacher error $tau$, and a strictly greater $gamma$ term. This greater $gamma$ term will result in a looser error floor than the one we may guarantee for the teacher-optimal criterion.
+
+=== Convergence of Teacher-Optimal Selection Criterion
+
+// In order to leverage @prop-rho-main-bound to derive a bound on $ek$ depending on $e^((0))$ and constants, we first determine the fixed point of @eq-master-ineq-rho.
+
+Because @eq-master-ineq-rho has the same form as the corresponding inequality given for the teacher-optimal criterion @eq-master-ineq, the derivations given in @sec-convergence-results-opt apply, just with new definitions for $alpha$, $beta$, and $gamma$ as given above in @eq-master-ineq-rho.
 
 == Empirical Results
 #to-do[
